@@ -45,6 +45,27 @@ bool OnRespawnCommand(int iSlot, const char* szContent)
 					g_pUtils->PrintToChat(iSlot, g_pVIPCore->VIP_GetTranslate("EndRound"));
 					return false;
 				}
+				
+				int iAliveT = 0;
+				int iAliveCT = 0;
+
+				for (int i = 0; i < 64; i++)
+				{
+					CCSPlayerController* pController = CCSPlayerController::FromSlot(i);
+					if (!pController || !pController->IsConnected() || !pController->m_bPawnIsAlive())
+						continue;
+
+					int iTeam = pController->m_iTeamNum();
+					if (iTeam == 2) iAliveT++;
+					else if (iTeam == 3) iAliveCT++;
+				}
+
+				if (iAliveT == 1 && iAliveCT == 1)
+				{
+					g_pVIPCore->PrintToChat(iSlot, " \x02[VIP]\x01 Возрождение запрещено в ситуации \x091 на 1\x01!");
+					return;
+				}
+				
 				g_iRespawns[iSlot]++;
 				
 				g_pPlayers->Respawn(iSlot);
