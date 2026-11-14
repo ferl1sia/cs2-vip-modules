@@ -1,0 +1,66 @@
+name: Build VIP_Respawn
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install AMBuild
+        shell: bash
+        run: |
+          git clone https://github.com/alliedmodders/ambuild.git
+          python -m pip install ./ambuild
+
+      - name: Download SDKs
+        shell: bash
+        run: |
+          mkdir -p sdk
+          git clone --depth=1 --branch=cs2 https://github.com/alliedmodders/hl2sdk.git sdk/hl2sdk-cs2
+          git clone --depth=1 https://github.com/alliedmodders/metamod-source.git sdk/metamod-source
+          git clone --depth=1 https://github.com/Pisex/cs2-vip-core.git sdk/vip-core
+          mkdir -p VIP_Respawn/include
+          cp -r sdk/vip-core/include/* VIP_Respawn/include/ 2>/dev/null || true
+
+      - name: Configure and Build (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          cd VIP_Respawn
+          mkdir -p build && cd build
+          python3 ../configure.py --sdks cs2 --hl2sdk-root=../../sdk --mms_path=../../sdk/metamod-source
+          ambuild
+
+      - name: Configure and Build (Windows)
+        if: matrix.os == 'windows-2022'
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd VIP_Respawn
+          mkdir build
+          cd build
+          python ../configure.py --sdks cs2 --hl2sdk-root=../../sdk --mms_path=../../sdk/metamod-source
+          ambuild
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: VIP_Respawn-${{ matrix.os }}
+          path: VIP_Respawn/build/package/**
